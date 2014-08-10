@@ -9,7 +9,7 @@
 <b>A Small Puzzle:</b>
 <i>if( ??? != 0 ) { std::cout << "Hello "; } else { std::cout << "World!"; }</i>
 <p>On the above code, what can replace "???" and output the old-school hello world?</p>
-<p>Think Of as much as you can!(I'd already find 6 kinds of answer)</p>
+<p>Think Of as much as you can!(I'd already find  kinds of answer)</p>
 <script type="text/javascript">
 function showAnswer(id, link) 
 {
@@ -25,6 +25,7 @@ function showAnswer(id, link)
 	<li>Insert hello world(???=[](){std::cout<<"Hello World!";throw;return 0;}())</li>
 	<li>Define your own std::cout(The code is too long, and I'm sure even a beginner know how to do so so I did not post the code.)</li>
 	<li>Statement injection(???="true)std::cout << "Hello ";if(0"</li>
+	<li>Comment injection(???="1)std::cout << "Hello World!";//")</li>
 	<li>Macro Hack(#define if or #define else, ??? = 12450)</li>
 </ol>
 <b>If you can contrive up another kind of answer, please comment.</b>
