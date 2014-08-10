@@ -9,7 +9,7 @@
 <b>A Small Puzzle:</b>
 <i>if( ??? != 0 ) { std::cout << "Hello "; } else { std::cout << "World!"; }</i>
 <p>On the above code, what can replace "???" and output the old-school hello world?</p>
-<p>Think Of as much as you can!(I'd already find  kinds of answer)</p>
+<p id="Count"></p>
 <script type="text/javascript">
 function showAnswer(id, link) 
 {
@@ -19,7 +19,7 @@ function showAnswer(id, link)
 </script>
 <a href="#" onclick="showAnswer('answer', this); return false;">See all(known) answer</a>
 <span id="answer" style="display: none;">
-<ol>
+<ol id="answer list">
 	<li>The original answer(Yes I see this question somewhere and find many new answer when asked in a community for fun)(???=fork())</li>
 	<li>Insert hello(???=std::cout << "Hello ", 0 )</li>
 	<li>Insert hello world(???=[](){std::cout<<"Hello World!";throw;return 0;}())</li>
@@ -30,6 +30,10 @@ function showAnswer(id, link)
 </ol>
 <b>If you can contrive up another kind of answer, please comment.</b>
 </span>
+<script type="text/javascript">
+var tem = document.getElementById("Count");
+tem.innerHTML="Think Of as much as you can!(I'd already find " + document.getElementById("answer list").childElementCount + " kinds of answer)"
+</script>
 <div id="disqus_thread"></div>
 <script type="text/javascript">
 	/* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
