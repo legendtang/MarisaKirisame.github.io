@@ -133,76 +133,115 @@ there are basic operation on Double, some have condition/loop, some have scan/va
 DDF had add all sorts of ordinary PL construct, such as recursion, goto(continuation), exception, IO.
 </p>
 
-跟其他AD语言比起来，DDF的特点是，是一个Typed Extensible Embedded DSL - 这DSL造出的AST是scala中强类型的term，并且这个DSL可以很简单的在scala中扩展。同时，DDF是Typed的-我们可以给出任意type的导数类型，也可以对任意term求导（并且有正确的type）。我们也同时（未完成）给出了一个算法是正确的证明。
+<p>
+Comparing to other AD tool, DDF is a Typed Extensible Embedded DSL - 
+AST of the DSL is richly-typed scala term, and it is very easy to extend the DSL in scala.
+We also extend AD to work on others type and term (and return term with correct type), 
+and (not completed yet) give a formal proof for it's correctness.
+</p>
 
 <b>How do DDF work?</b>
 
-对于任意一个term，如果要找出他的导数形式，我们只需要把所有Double换成对应的二元数。但是，转换完以后，跟一般的，得出一个函数的二元数实现不同，得出的依然是一个AST-换句话说，AD其实可以是Symbolic的。这是DDF AD的原理。
+<p>
+In order to find the derivative form for an arbitrary term, we just need to replace all occurence of Real with Dual Number.
+However, we quote the whole code after transformation, so we have an AST afterward.
+In another word, AD is symbolic.
+</p>
 
-换句话说，DDF抛弃了‘导数’这个概念。在DDF中，对一个东西求导以后，不会得出他的导数，只会得出该term跟该term的导数的一个混合物。打个比方：
+<p>
+As a consequence of this, DDF have abandoned the concept of a loss.
+After calculating the derivative for a term, we will not have a loss, but only a hybrid of the original term and the loss.
+</p>
+<p>As an example, the gradient for "Either[Double, (Double, Double)] => Either[Double, Double]" does not exists.</p>
+<p>Instead, we have a hybrid by inserting the gradient in it:</p>
+<p>Either[(Double, Double), ((Double, Double), (Double, Double))] => Either[(Double, Double), (Double, Double)]</p>
+<p>It is simply the original type but with every occurrences of Double replaced with pair of it.</p>
 
-Either[Double, (Double, Double)] => Either[Double, Double]并没有一个所谓的‘导数’。
+<p>
+Note: It is infact possible to find the gradient for Sum type or Function, which is what early stage DDF do.
+I just abandon the approach since I do not like it
+</p>
 
-但是可以把导数插进上面的类型，得出
+<p>
+As for how to do Typed Extensible EDSL, see
+<a href="http://www.cs.cornell.edu/info/projects/nuprl/PRLSeminar/PRLSeminar2011/Chung-chiehShan-FinallyTaglessPartiallyEevaluated.pdf" target="_blank">Finally Tagless</a>
+</p>
 
-Either[(Double, Double), ((Double, Double), (Double, Double))] => Either[(Double, Double), (Double, Double)]
-
-这是上面类型的term，但是所有Double跟Double operation都转换成二元数的term，的类型。
-
-注：的确可以给函数，Sum Type，找出单独的类型，早期DDF也是这样做的，但是我不喜欢，放弃了。
-
-至于如何做Typed Extensible EDSL，可以看Finally Tagless
-
-至于如何表示Lambda Abstraction，可以看Compiling Combinator
+<p>
+And for how to do Lambda Abstraction, see <a href="https://zhuanlan.zhihu.com/p/22231273" target="_blank">Compiling Combinator</a>
+</p>
 
 <b>Formal Definition</b>
 
-可能这些东西都太玄乎，大家都没理解，于是我就给出一个缩小版的DDF，DDF-min，并更严谨地定义DDF-min，希望能帮助学过点Type Theory的人理解：
+<p>
+Maybe all those are too much Hand-waving, so I will give a formal definition of mini DDF, DDF-min,
+so it will help the type-theoretically inclined reader.
+</p>
 
-DDF-min基于Call By Value Simply Typed Lambda Calculus，带有Real，Sum Type, Product Type, Recursion（using Y schema）
+<p>
+DDF-min is based on Call By Value Simply Typed Lambda Calculus, with Real, Sum, Product, and Recursion under Y Combinator Schema
+Instead of using lambda abstraction, we represent stuff with SKI & BCKW Combinator instead.
+Outside of the language, there's a with_grad_t function, which traverse the type structure, and replace Real with Real * Real.
+Thre is a with_grad function, which traverse an AST, transforming it from AST of type t to type (with_grad_t t).
+And there's a Logical Relation which, for everything except a Function, have a trivial definition - 
+everything satisfy, or for recursive case, what made it up also satisfy the logical relation.
+For f:A -> B, beside the standard requirement(for every x:A in the logical relation, f x:B is also in),
+we also have: if A -> B = Real -> Real(which is A = Real /\ B = Real), the with_grad of this function, with some wrapper,
+return the Newtonian definition of derivative on one dimensional calculus of f.
+</p>
 
-有with_grad_t函数，可以traverse type structure，然后把所有遇到的Real转换成Real * Real。
+<p>Note: This is not completely the same with what MarisaKirisame/DDFADC describe.</p>
 
-还有with_grad函数，可以traverse AST，然后把类型转换成with_grad_t
+<b>Will Forward Mode AD cause efficiency trouble?</b>
 
-然后有个logical relation，对于函数外的东西，都是trivial的定义，或者简单的recurse进去。
+<p>
+If you are familiar with AD, you will point out that, if there are N Double input, Forward Mode must activate N time.
+This is simply unacceptable.
+Luckily, this can be solved by generalizing Dual Number: It need not be of type Double * Double.
+It can be Double * (Double * Douhle), and using the latter, we can calculate two derivative in one pass.
+For example, given x, y, z, and if we want to get the derivative of (x + y) * z with respect to x and z,
+we can write:
+</p>
 
-对于A -> B，除了普通的‘对所有符合logical relation的A，application满足logical relation’外，还有：如果A -> B = Real -> Real，这个函数的with_grad加点wrapper就是这个函数的Denotational Semantic的导数函数。
+<p>((x, (1, 0)) + (y, (0, 0))) * (z, (0, 1)) =</p>
+<p>(x + y,(1, 0)) * (z, (0, 1)) =</p>
+<p>((x + y) * z, (z, x + y))</p>
 
-另：这根MarisaKirisame/DDFADC中描述的有一定出入。
+<p>
+In the above equation, the zeroth term of the pair is the value for the original expression.
+The first term of the pair is another pair, with 0, 1 term being derivative for x, y.
+</p>
 
-Forward Mode AD会不会有性能问题？
+<p>
+Or, we can replace (Double * Double[1000]) with (Double * Double -> Double[1000]),
+so we do not have to traverse the whole array when we multiply a term with a literal - we simply update the double passed in.
+This is Reversed Mode Automatic Differentiation.
+</p>
 
-如果对AD很熟的朋友，肯定会指出一个问题：如果有N个Double输入，Forward Mode AD就要运行N次。对于有着很多参数的神经网络来说，这无法忍受！
-
-解决办法是，我们对Dual Number做一次Generalization：Dual Number并不一定是(Double, Double)，也可以是(Double, (Double, Double))。用后者，可以运行一次，算出两个导数。
-
-比如说，给定x, y, z，并且想知道(x+y)*z对于x, z的导，
-
-可以写出
-
-((x, (1, 0)) + (y, (0, 0))) * (z, (0, 1)) =
-
-(x + y,(1, 0)) * (z, (0, 1)) =
-
-((x + y) * z, (z, x + y))
-
-在这里面，pair的第0项就是表达式的值，pair的第1项就是另一个pair，其中第0,1，项分别是表达式对于x，y的导。
-
-或者，可以用(Double, Double => Double[1000])（注：Double[1000]不是真正的scala代码）代替(Double, Double[1000])-这样，当整个term要乘以一个literal的时候，并不需要进入整个Array去算，只需要update该Double则可-这就是反向传播。
-
-在实现中，这通过引入一个Typeclass，Gradient（满足的有Unit, (Double, Double),(Double => Double[1000])等），（并限制Gradient一定要满足field的一个variation（其实本质上还是一个field，只不过为了提速）），并用之于Dual Number之上（第二个参数不再是Double，而是该Gradient）。然后，AD的四则运算就可以利用Field的操作写出。
+<p>
+In DDF Implementation, we achieve this by introducing a TypeClass, Gradient, 
+which is satisfy by Unit, Double Double * Double, (Double => Double[1000]), and such, with constraint very similar to a Field.
+We use it to define Dual Number of the type Double * Gradient, and we can write fundamental operation using construct on Field.
+</p>
 
 <b>So what is the main benefit from it, from a user point of view?</b>
-这有什么用？
 
-我们希望能做到Neural Networks, Types, and Functional Programming里面给的例子
+<p>
+We want to achieve the examples given by
+<a href="http://colah.github.io/posts/2015-09-NN-Types-FP/" target="_blank">Neural Networks, Types, and Functional Programming</a>
+</p>
 
-DDF可以很简单的给出有递归/循环的函数的高阶导。这点tensorflow就不支持（Gradients of non-scalars (higher rank Jacobians) · Issue #675 · tensorflow/tensorflow）。
+<p>
+We can give higher order derivative for code involving loop/recursion. 
+<a href="https://github.com/tensorflow/tensorflow/issues/675" target="_blank">Tensorflow</a> do not support such.
+</p>
 
-除了写神经网络以外，我们也希望可以写任意普通的算法，程序（但是带有未知变量），然后用DDF自动求导，以找出最优的这些变量。
+<p>
+We also want to be able to write arbitrary normal algorithm/program, but with unknown weight, 
+and use DDF to find the best value for the weight
+</p>
 
-能不能给个例子？这是一个用梯度下降解x*x+2x+3=27的例子。
+<p>And at last, <a href="https://github.com/ThoughtWorksInc/DeepDarkFantasy/blob/master/doc/poly.md" target="_blank">here</a> is an example of using gradient descent to solve x*x+2x+3=27.</p>
 
 <div id="disqus_thread"></div>
 <script type="text/javascript">
